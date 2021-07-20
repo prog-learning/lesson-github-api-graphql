@@ -1,60 +1,68 @@
-import { gql, useQuery, useMutation } from '@apollo/client';
-
-// 発行する GraphQL クエリ
-const GET_ISSUES = gql`
-  query FindIssueID {
-    repository(owner: "prog-learning", name: "lesson-github-api-graphql") {
-      issue(number: 1) {
-        id
-        title
-        comments(first: 10) {
-          nodes {
-            id
-            body
-          }
-        }
-      }
-    }
-  }
-`;
-
-const GET_QUERY = gql`
-  query ($number_of_repos: Int!) {
-    viewer {
-      name
-      repositories(last: $number_of_repos) {
-        nodes {
-          name
-        }
-      }
-    }
-  }
-`;
-const ADD_ISSUE = gql`
-  mutation AddReactionToIssue {
-    addReaction(
-      input: { subjectId: "MDU6SXNzdWUyMzEzOTE1NTE=", content: HOORAY }
-    ) {
-      reaction {
-        content
-      }
-      subject {
-        id
-      }
-    }
-  }
-`;
+import { useState } from 'react';
+import { useQuery, useMutation } from '@apollo/client';
+import { GET_ISSUES, GET_ISSUE, GET_USER } from '../graphql/query';
+import { ADD_REACTION_GOOD, ADD_STAR } from '../graphql/mutation';
 
 export default function Home() {
-  const { loading, error, data: get_data } = useQuery(GET_ISSUES);
-  console.log(loading, error, get_data);
+  const [input, setInput] = useState('');
 
-  const [addReaction, { data }] = useMutation(ADD_ISSUE);
+  const confirmQuery = (data, refetch) => {
+    refetch();
+    console.log(data);
+  };
+
+  const { data: get_user, refetch: setGET_USER } = useQuery(GET_USER);
+
+  const { data: get_issues, refetch: setGET_ISSUES } = useQuery(GET_ISSUES);
+
+  const { data: get_issue, refetch: setGET_ISSUE } = useQuery(GET_ISSUE, {
+    variables: { issueId: Number(input) },
+  });
+
+  const [addReactionGood] = useMutation(ADD_REACTION_GOOD, {
+    variables: { subjectId: input },
+  });
+  const [addStar, { data }] = useMutation(ADD_STAR);
+
   console.log(data);
+
   return (
     <div>
       <h1>Lesson GitHub API by GraphQL</h1>
-      <button onClick={() => addReaction()}>reaction!!</button>
+      <input
+        type='text'
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+      />
+      <h3>Query</h3>
+      <button onClick={() => confirmQuery(get_user, setGET_USER)}>
+        GET_USER
+      </button>
+      <button onClick={() => confirmQuery(get_issues, setGET_ISSUES)}>
+        GET_ISSUES
+      </button>
+      <button onClick={() => confirmQuery(get_issue, setGET_ISSUE)}>
+        GET_ISSUE
+      </button>
+      <h3>Mutation</h3>
+      <button onClick={() => addReactionGood()}>ADD_REACTION_GOOD</button>
+      <button onClick={() => addStar()}>ADD_STAR</button>
+      <hr />
+      {get_issue && (
+        <div>
+          GET_ISSUE {'>>>'} <b>{get_issue?.repository?.issue?.title}</b>
+        </div>
+      )}
+      <hr />
+      {get_issues?.search?.nodes.map((issue) => (
+        <div key={issue.number}>
+          <h4>
+            #{issue.number} : [{issue.title}]
+          </h4>
+          <div>subjectId: {issue.id}</div>
+        </div>
+      ))}
+      <hr />
     </div>
   );
 }
